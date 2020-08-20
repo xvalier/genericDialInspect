@@ -3,7 +3,6 @@ import cv2 as cv
 import numpy as np
 import configparser
 
-
 #PATTERN FUNCTIONS-------------------------------------------------------
 #Finds pattern within search region of image
 #TODO: Test out other methods of template matching to get fastest one
@@ -52,9 +51,36 @@ def find_edges(image, search, horiz_flag, gx, gy):
     peak2 = np.where(edges == np.max(edges))[0][0]
     edge_locations[1] = peak2
     #Offset calculated values by location of search region in image 
-    edge_locations = (search[0][1] + edge_locations[0], search[0][1] + edge_locations[1])
+    if horiz_flag:
+        edge_locations = (search[0][1] + edge_locations[0], search[0][1] + edge_locations[1])
+    else:
+        edge_locations = (search[0][0] + edge_locations[0], search[0][0] + edge_locations[1])
     return edge_locations
-    
+
+def find_single_edge(image, search, horiz_flag, gx,gy):
+    #Offset the search region based on fixture points 
+    #TODO: WHen taking the template for 'edges', make sure to also get the coordinates of the point too
+    region = image[search[-2][1]:search[-1][1], search[-2][0]:search[-1][0]]
+    region = cv.cvtColor(region, cv.COLOR_BGR2GRAY)
+    edge_image  = cv.Canny(region,gx,gy)
+    #Perform a cross section of the image (obtain a graph of the median value of each row)
+    if horiz_flag:
+        hist = [np.median(col) for col in np.transpose(edge_image)]
+    else:
+        hist = [np.median(row) for row in edge_image] 
+    #Plot to show where edges are
+    #plt.plot(hist)
+    #plt.show()
+    #Differente the pixel value distribution to find y locations of edges
+    edges = np.gradient(hist)
+    #Find the first peak (indicating a rising edge) by finding max value
+    peak1 = np.where(edges == np.max(edges))[0][0]
+    #Offset calculated values by location of search region in image 
+    if horiz_flag:
+        peak1 = peak1 + search[0][1]
+    else:
+        peak1 = peak1 + search[0][0]
+    return peak1
 
 #GUI FUNCTIONS------------------------------------------------------------
 #TODO: Show the rectangle and make it draggable/scalable
@@ -71,7 +97,7 @@ def offset_fixture(region, ref_fixture, curr_fixture):
 #Use mouse to define pattern region 
 def define_pattern(name, image):
     cv.namedWindow(name+'-pattern', cv.WINDOW_NORMAL)
-    cv.resizeWindow(name+'-pattern', 480,300)
+    cv.resizeWindow(name+'-pattern', 1000,600)
     cv.setMouseCallback(name+'-pattern', on_mouse)
     while True:
         cv.imshow(name+'-pattern', image)
@@ -83,17 +109,17 @@ def define_pattern(name, image):
             pattern = image[rect[-2][1]:rect[-1][1], rect[-2][0]:rect[-1][0]]
             coordinates = [(rect[0][0]+rect[1][0])/2, (rect[0][1]+rect[1][1])/2]
             rect.clear()
-            cv.destroyAllWindows()  
+            cv.destroyAllWindows()
             break
     return pattern ,coordinates
 
 #Use mouse to define search region for pattern
 def define_search_region(name, image):
-    cv.namedWindow(name+'-pattern', cv.WINDOW_NORMAL)
-    cv.resizeWindow(name+'-pattern', 480,300)
-    cv.setMouseCallback(name+'-pattern', on_mouse)
+    cv.namedWindow(name+'-search', cv.WINDOW_NORMAL)
+    cv.resizeWindow(name+'-search', 1000,600)
+    cv.setMouseCallback(name+'-search', on_mouse)
     while True:
-        cv.imshow(name+'-pattern', image)
+        cv.imshow(name+'-search', image)
         k = cv.waitKey(1) & 0xFF
         if k == 27:
             cv.destroyAllWindows()  
@@ -121,7 +147,7 @@ def store_pattern(name, template, coordinates):
     config.read(path+name+'.ini')
     config.add_section("Coordinates")
     config.set("Coordinates",'x1',str(int(coordinates[0])))
-    config.set("Coordinates",'y1',str((coordinates[1])))
+    config.set("Coordinates",'y1',str(int(coordinates[1])))
     file = open(path+name + '.ini','w')
     config.write(file)
     file.close()
@@ -162,3 +188,13 @@ def load_search_region(name):
     coordinates[1][0] = int(config['Coordinates']['x2'])
     coordinates[1][1] = int(config['Coordinates']['y2'])
     return coordinates
+    
+#Show image in window
+def show_image(name, image):
+    cv.namedWindow(name, cv.WINDOW_NORMAL)
+    cv.imshow(name, image)
+    cv.resizeWindow(name, 600,400)
+    while(1):
+        k = cv.waitKey(1) & 0xFF
+        if k == 27:
+            cv.destroyAllWindows()
