@@ -2,52 +2,48 @@ import os
 import cv2 as cv 
 import numpy as np
 import helpers
+from matplotlib import pyplot as plt
 
 #Sources:
 #https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_imgproc/py_template_matching/py_template_matching.html
 
-#TODO: Make separate 'modes' for training and production
 def main():
-    #Import images
-    images = import_images()
+    img = import_images()[0]
+    centerline, graphics = find_position(img, img, 'centerline')
+    #For circumference, have to do find_position twice (once for each notch), then find distance between
+    circumference, graphics = find_position(img, graphics, 'circumference')
+    #For xReference, need to find 2x slot patterns and detect 2x edges horizontally
+    xReference, graphics = find_position(img, graphics, 'xReference')
+    #For yreference00 and yReference80, need to find 3x edges and their midpoints, and also calculate tilt
+    yreference00, graphics = find_position(img, graphics, 'yreference00')
+    yReference80, graphics = find_position(img, graphics, 'yReference80')
+    #For printlocation, need to find edge horizontally
+    printlocation, graphics = find_position(img, graphics, 'printlocation')
+    #Also need to need measurements section, to calculate intersection points, print offset, etc
+
+#HELPER FUNCTION----------------------------------------------------------------------------------------------------------
+def find_position(img, graphics, name)
+    pattern, original_pos = helpers.load_pattern(name)
+    region  = helpers.load_search_region(name)
+    edge_region  = helpers.load_search_region('edge-'+name)
+    #Find pattern in search region, use its position to fixture edge region 
+    current_pos  = helpers.find_pattern(img, pattern, region)
+    edge_search  = helpers.offset_fixture(edge_region, original_pos, current_pos)
+    #Find edges of pattern for precise positioning of midpoint
+    edge_pos  = helpers.find_edges(img,edge_region, horiz_flag = 0, gx=60, gy=80)   
+    midpoint = int((edge_pos[0] + edge_pos[1]) / 2)
+    #Graphics
+    fixture = cv.circle(graphics, tuple(new_pos), 2, (0,255,0), 10)
+    slot_edge1  = cv.line(fixture, (edge_region[0][0], edge_pos[0]), (edge_region[1][0], edge_pos[0]), (255,255,0), 10)
+    slot_edge2  = cv.line(edge1, (edge_region[0][0], edge_pos[1]), (edge_region[1][0], edge_pos[1]), (255,255,0), 10)
+    graphics  = cv.line(edge2, (0, midpoint), (len(img[0])-1, midpoint), (0,255,0), 10)
+    #show_image('result',graphics)
+    return midpoint, graphics    
     
-    #TRAINING MODE
-    #pattern = helpers.define_pattern_region(images[0])
-    #search  = helpers.define_search_region(images[0])
-    #helpers.store_patternROI(pattern, 'test')
-    #helpers.store_searchROI(search, 'test')
-    
-    #PRODUCTION MODE
-    #pattern = helpers.load_patternROI('test')
-    search  = helpers.load_searchROI('test')
-    #coordinates = helpers.find_pattern(images[0], pattern, search)
-    #Render result
-    #result = cv.circle(images[0], tuple(coordinates), 2, (0,255,0), 10)
-    #show_image('result',result)
-    
-    #CHECK FOR EDGES?
-    #TODO: Create a new search region for edge only
-    #TODO: Get the top and bottom edges for region
-    #TODO: Maybe perform hough transform/canny edge detection on reference image prior to looking for edges as a whole?
-    img = images[0][search[-2][1]:search[-1][1], search[-2][0]:search[-1][0]]
-    gray = cv.cvtColor(img,cv.COLOR_BGR2GRAY) 
-    edges = cv.Canny(gray,1,90)#Figure out how edges work, maybe create a new file for this?
-    show_image('edge',edges)
-    lines = cv.HoughLines(edges,1,np.pi/180, 200) 
-    for r,theta in lines[0]: 
-        a = np.cos(theta) 
-        b = np.sin(theta) 
-        x1 = int(a*r + 1000*(-b)) + search[0][0]
-        y1 = int(b*r + 1000*(a))  + search[0][1]
-        x2 = int(a*r - 1000*(-b)) + search[0][0]
-        y2 = int(b*r - 1000*(a))  + search[0][1]
-        result = cv.line(images[0],(x1,y1), (x2,y2), (0,0,255),2) 
-    show_image('result',result)
     
 
 
-    
-#def find_edge(image, search, 
+
 
 
 #Loads all images from input directory
@@ -68,18 +64,5 @@ def show_image(name, image):
         k = cv.waitKey(1) & 0xFF
         if k == 27:
             cv.destroyAllWindows()
-#Training Functions
-
-
-#def store_region(coordinates, path):  
-
-'''#Production Functions
-def find_edge(image, region, fixture, polarity):
-    return coordinates
-def load_region(path):
-    return coordinates
-def load_template(path):
-    return template
-'''
     
 main()
