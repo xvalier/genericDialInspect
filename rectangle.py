@@ -2,173 +2,181 @@ import cv2 as cv
 import numpy as np 
 import os
 
+#Example Script Code------
 def main():
-    img = cv.imread(os.getcwd() + '\\input\\test.png', 1)
-    view = draggable(img, 'Slot', (0,255,0))
+    path = os.getcwd() + '\\input\\test.png'
+    img = cv.imread(path, 1)
+    view = BoundingBox(img, 'Slot', (0,255,0))
     view.modify()
-    while True:
-        cv.imshow('test', rect.image)
-        key = cv2.waitKey(1) & 0xFF
-        if k==27:
-            break
-    cv.destroyAllWindows()
       
 class Marker:
     start = (0,0)
     end   = (0,0)
-    def refresh(self, x, y):
+    thickness = 10
+    color = (255,0,255)
+    #Constructor 
+    def __init__(self, box_start, box_end, marker_pos):
+        self.refresh_resize(box_start, box_end, marker_pos)
         
+    #Updates marker location for dragging based on bounding box's offset 
+    def refresh_drag(self, offset):
+        self.start = tuple([self.start[i] + offset[i] for i in range(0,len(offset))]) 
+        self.end   = tuple([self.end[i] + offset[i] for i in range(0,len(offset))]) 
         
+    #Updates places marker in initial location based on which corner of bounding box marker is in
+    def refresh_resize(self, box_start, box_end, marker_pos):
+        x0,y0  = box_start
+        x1,y1  = box_end
+        top    = ['topleft', 'topmid', 'topright']
+        bottom = ['bottomleft', 'bottommid', 'bottomright']
+        left   = ['topleft', 'midleft', 'bottomleft']
+        right  = ['topright', 'midright', 'bottomright']
+        if marker_pos in left:
+            center_x = x0 
+        elif marker_pos in right:
+            center_x = x1 
+        else:
+            center_x = int((x0+x1)/2)
+        if marker_pos in top:
+            center_y = y0 
+        elif marker_pos in bottom:
+            center_y = y1 
+        else:
+            center_y = int((y0+y1)/2)
+        self.start = (center_x-self.thickness, center_y-self.thickness)
+        self.end = (center_x+self.thickness, center_y+self.thickness)
 
-class draggable:
+class BoundingBox:
     image = None 
     name = ""
+    color = (0, 255, 0)
     start  = (0,0)
     end    = (0,0)
+    limit_start = (0,0)
+    limit_end   = (0,0)
     anchor = (0,0)
-    
-    
-    anchor = [0,0,0,0]  #Used during drag/hold operations to store previous topleft/bottomright points
-    limits = [0,0,0,0]  #Maximum values for bounding box before values get clipped
-    markers = {}
-    marker_flags = {}
+    markers = [
+        [(0,0),(0,0)],  #Topleft
+        [(0,0),(0,0)],  #Topmid
+        [(0,0),(0,0)],  #Topright
+        [(0,0),(0,0)],  #Midleft
+        [(0,0),(0,0)],  #Midright
+        [(0,0),(0,0)],  #Bottomleft
+        [(0,0),(0,0)],  #Bottommid
+        [(0,0),(0,0)],  #Bottomright
+    ]
+    marker_flags = [False, False, False, False, False, False, False, False,]
     drag_flag = False
-    thickness = 4
-    color = (0, 255, 0)
-
-    #Constructor sets image, bounding box color, and marker positions
-    def __init__(self, name, image, color):
+    
+    #Constructor sets image/color, and marker positions
+    def __init__(self, image, name, color):
         self.image = image 
         self.name = name
         self.color = color
-        self.limits = [0,0,image.shape[0], image.shape[1]]
-        x0,y0,x1,y1 = self.pos
-        self.markers = refresh_markers(view)
+        self.limit_end = (image.shape[0], image.shape[1])
+        self.end = (100, 100)
+        markers = 
+        for key in corners:
+        
+            start = refresh_markers(self.start, self.end, key)
+            end   
+            self.markers[key] = Marker(self.start, self.end, key)
         for key in self.markers:
             self.marker_flags[key] = False
             
     #Method to launch window to modify bounding box positions
     def modify(self):
-        cv.namedWindow(self.name)
-        cv.setMouseCallback(self.name, on_mouse, self)
-    
+        cv.namedWindow(self.name, cv.WINDOW_NORMAL)
+        cv.resizeWindow(self.name, 1000,600)
+        cv.setMouseCallback(self.name, self.on_mouse, self)
+        self.draw_rectangle()
+            
     #Event handler for mouse operations
-    def on_mouse(event, x,y, flags, view):
+    def on_mouse(self, event, x,y, flags, view):
         #Clip bounding box if reaching limits of image
-        x = np.clip([x], view.limits[0],view.limits[2])[0]
-        y = np.clip([y], view.limits[1],view.limits[3])[0]
+        x = np.clip([x], self.limit_start[0],self.limit_end[0])[0]
+        y = np.clip([y], self.limit_start[1],self.limit_end[1])[0]
         #Perform corresponding action to mouse event
-        if event = cv.EVENT_LBUTTONDOWN:
-            mouse_down(x,y,view)
-        if event = cv.EVENT_LBUTTONUP:
-            mouse_up(x,y,view)
-        if event = cv.EVENT_MOUSEMOVE:
-            mouse_move(x,y,view)
-        if event = cv.EVENTLBUTTONDDBLCLK:
-            mouse_doubleclick(x,y,view)
+        if event == cv.EVENT_LBUTTONDOWN:
+            self.mouse_down(x,y)
+        if event == cv.EVENT_LBUTTONUP:
+            self.mouse_up(x,y)
+        if event == cv.EVENT_MOUSEMOVE:
+            self.mouse_move(x,y)
+        if event == cv.EVENT_LBUTTONDBLCLK:
+            self.mouse_doubleclick(x,y)
             
     #Operations for when mouse button is pressed down
-    def mouse_down(x,y,view):
+    def mouse_down(self, x,y):
         #If user pressed a specific corner, set that corner's flag to True (allows changing of box size)
-        for key in view.markers:
-            view.marker_flags[key] = view.inside_box((x,y), view.markers[key])
+        for key in self.markers:
+            self.marker_flags[key] = self.inside_box((x,y), self.markers[key].start , self.markers[key].end)
+            #self.markers[key].color = (0,0,255)
+            if True in self.marker_flags.values():
+                self.anchor    = (x,y)
+                
         #If user pressed inside the bounding box, set hold flag to True (moves box without changing size)
-        if view.inside_box((x,y), view.pos):
-            view.anchor    = [x,y]
-            view.drag_flag = True 
+        if self.inside_box((x,y), self.start, self.end):
+            self.anchor    = (x,y)
+            self.drag_flag = True 
     
     #Operation for when mouse button is released
-    def mouse_up(x,y,view):
+    def mouse_up(self, x,y):
         #Reset all flags
-        view.drag_flag = False 
-        for key in view.markers:
-            view.marker_flags[key] = False
+        self.drag_flag = False 
+        for key in self.markers:
+            self.marker_flags[key] = False
+           # self.markers[key].color = (255,0,255)
         #Switch start and end points if they were reversed during size adjustment
-        if (view.pos[2]-view.pos[0] < 0):
-            view.pos[0] = view.pos[2]
-            view.pos[2] = view.pos[0]
-        if (view.pos[3]-view.pos[3] < 0):
-            view.pos[1] = view.pos[3]
-            view.pos[3] = view.pos[1]
-        draw_rectangle(view)
-    
-    #End modification if mouse is double clicked inside bounding box
-    def mouse_doubleclick(x,y,view):
-        if view.inside_box((x,y), view.pos):
-            cv.destroyWindow(view.name)
-            
+        for i in range(0,2):
+            if (self.end[i] - self.start[i] < 0):
+                temp = self.start[i]
+                self.start[i] = self.end[i]
+                self.end[i] = self.start[i]
+        self.draw_rectangle()
+   
     #Operation for when mouse is moving
-    def mouse_move(x,y,view):
-        #If mouse is already pressed inside bounding box, move bounding box along with mouse movement
-        if view.drag:
-            offset = [x-view.anchor[0], y-view.anchor[1]]
-            for coordinate in view.pos:
-                view.pos[coordinate] = view.pos[coordinate] + offset[coordinate%2]
-            view.markers = refresh_markers(view)
-            draw_rectangle(view)
-        for key in view.marker_flags:
-            if view
+    def mouse_move(self, x,y):
+        #If mouse is was pressed inside bounding box while moving, change bounding box location based on anchor offset
+        if self.drag_flag:
+            offset = [x-self.anchor[0], y-self.anchor[1]]
+            self.start = tuple([self.start[i] + offset[i] for i in range(0,len(offset))]) 
+            self.end   = tuple([self.end[i] + offset[i] for i in range(0,len(offset))]) 
+            for key in self.markers:
+                self.markers[key].refresh_drag(offset)
+            self.draw_rectangle()
+        #If mouse was pressed on a corner while moving, change bounding box sizing
+        else:   
+            for key in self.markers:
+                top    = ['topleft', 'topmid', 'topright']
+                bottom = ['bottomleft', 'bottommid', 'bottomright']
+                left   = ['topleft', 'midleft', 'bottomleft']
+                right  = ['topright', 'midright', 'bottomright']
+                offset = [x-self.anchor[0], y-self.anchor[1]]
+                self.start = tuple([self.start[i] + offset[i] for i in range(0,len(offset))]) 
+                self.end   = tuple([self.end[i] + offset[i] for i in range(0,len(offset))]) 
+                if self.marker_flags[key]:
+                    self.markers[key] = self.markers[key].refresh_resize(self.start,self.end,key)
+                    self.draw_rectangle()
 
-        #FIX ALL OF THIS LATER
-        if view.marker_flags['topleft']:
-            view.pos = [x,y,view.pos[2], view.pos[3]]
-        if view.marker_flags['topmid']:
-            view.pos = [view.pos[0], y, view.pos[2], view.pos[3]]
-        if view.marker_flags['topright']:
-            view.pos = [x, view.pos[1], view.pos[2], y]
-        if view.marker_flags['midleft']:
-            view.pos = [x, view.pos[1], view.pos[2], view.pos[3]]
-        if view.marker_flags['midright']:
-            view.pos = [view.pos[0], view.pos[1], x, view.pos[3]]
-        if view.marker_flags['bottomleft']:
-            view.pos = [view.pos[0], y, pos[2], view.pos[3]]
-        if view.marker_flags['bottommid']:
-            view.pos = [view.pos[0], y, pos[2], view.pos[3]]
-        if view.marker_flags['bottomright']:
-            view.pos = [view.pos[0], y, pos[2], view.pos[3]]
-        view.markers = refresh_markers(view)
-        draw_rectangle(view)
-
-    def inside_box(self, coordinates, positions):
-        if coordinates[0] in range(positions[0], positions[3]):
-            if coordinates[1] in range(positions[1], positions[4]):
+    #End modification if mouse is double clicked inside bounding box
+    def mouse_doubleclick(self, x,y):
+        cv.destroyWindow(self.name)
+            
+    #Check if given coordinates are start/end points of bounding box
+    def inside_box(self, coordinates, start, end):
+        if coordinates[0] in range(start[0], end[0]):
+            if coordinates[1] in range(start[1], end[1]):
                 return True
         return False
-    
-    def refresh_markers(view):
-        x0,y0,x1,y1 = view.pos
-        t = view.thickness
-        markers = {}
-        markers['topleft']  = create_marker_rect(x0, y0, t)
-        markers['topmid']   = create_marker_rect((x0+x1)/2, y0, t)
-        markers['topright'] = create_marker_rect(x1, y0, t)
-        markers['midleft']  = create_marker_rect(x0, (y0+y1)/2, t)
-        markers['midright'] = create_marker_rect(x1, (y0+y1)/2, t)
-        markers['bottomleft']  = create_marker_rect(x0, y1, t)
-        markers['bottommid']   = create_marker_rect((x0+x1)/2, y1, t)
-        markers['bottomright'] = create_marker_rect(x1, y1, t)
-        return markers
-            
-    #Helper function to concisely create marker box based on a centroid and thickness
-    def create_marker_rect(x,y, thickness):
-        return [x-thickness, y-thickness, x+thickness, y+thickness]
 
-    
-def draw_rectangle(view):
-    temp = view.image.copy()
-    x0,y0,x1,y1 = view.pos
-    cv.rectangle(view, (x0,y0), (x1,y1), (0,255,0), 2)
-    cv.imshow('test', temp)
-    cv.waitKey()
-    
-def draw_markers(view):
-    x0,y0,x1,y1 = view.pos
-    t = view.thick
-    cv.rectangle(view, (x0-t,y0-t), (x0-t+t*2, y0-t+t*2), (0,0,255),3)
-    cv.rectangle(view, (x0-t,y1-t), (x0-t+t*2, y1-t+t*2), (0,0,255),3)
-    cv.rectangle(view, (x0-t,y0-t), (x1-t+t*2, y0-t+t*2), (0,0,255),3)
-    cv.rectangle(view, (x0-t,y1-t), (x1-t+t*2, y1-t+t*2), (0,0,255),3)
-    cv.rectangle(view, (x0-t,(y0+y1)/2-t), (x1-t+t*2, (y0+y1)/2-t+t*2), (0,0,255),3)
-    cv.rectangle(view, (x0-t,(y0+y1)/2-t), (x0-t+t*2, (y0+y1)/2-t+t*2), (0,0,255),3)
+    #Draw rectangle with markers on image
+    def draw_rectangle(self):
+        image = self.image.copy()
+        cv.rectangle(image, self.start, self.end, self.color, 10)
+        for key in self.markers:
+            cv.rectangle(image, self.markers[key].start, self.markers[key].end, self.markers[key].color, self.markers[key].thickness)
+        cv.imshow(self.name, image)
+        cv.waitKey()
     
 main()
