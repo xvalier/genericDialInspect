@@ -2,6 +2,7 @@ import os
 import cv2 as cv
 import numpy as np
 from model import *
+import tasks
 import tkinter as tk 
 from functools import partial
 from tkinter import filedialog
