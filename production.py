@@ -1,11 +1,8 @@
 import os
 import cv2 as cv 
 import numpy as np
-import configparser
 
 #TODO:
-#Use model to load regions for caching
-#Create a structure to store patterns and their fixtures? for caching
 #Augment find_pattern for model usage
 #Augment find_edges for model usage
 #Augment fixture_edge_region for model usage 
@@ -101,17 +98,3 @@ def offset_fixture(region, ref_fixture, curr_fixture):
     offset = np.subtract(curr_fixture, ref_fixture)
     new_region = np.add(region, offset)
     return new_region
-    
-    
-    
-#DATABASE FUNCTIONS-------------------------------------------------------
-#Load template from image file
-def load_pattern(name):
-    path = os.getcwd() + '\\templates\\'
-    image = cv.imread(path + name+'.bmp', 1)
-    config = configparser.ConfigParser()
-    config.read(path+name+'.ini')
-    coordinates = [0,0]
-    coordinates[0] = int(config['Coordinates']['x1'])
-    coordinates[1] = int(config['Coordinates']['y1'])
-    return image, coordinates 

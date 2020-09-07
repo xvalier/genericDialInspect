@@ -26,12 +26,12 @@ class Region:
     drag_flag = False
     
     #Constructor sets image/color, and marker positions
-    def __init__(self, name, width, height, color):
+    def __init__(self, name, dims, color):
         self.name = name
         self.color = color
         #Have default dimensions when resetting size during double right click
-        self.default_width  = width
-        self.default_height  = height
+        self.default_width  = dims[0]
+        self.default_height  = dims[1]
     
     #Refreshes the bounding box with provided coordinates
     def load_position(self, x0, y0, x1, y1):
@@ -49,7 +49,7 @@ class Region:
     #Method to launch window to modify bounding box positions
     def modify(self, image, name):
         cv.namedWindow(name, cv.WINDOW_NORMAL)
-        cv.resizeWindow(name, 500,300)
+        cv.resizeWindow(name, 950, 600)
         cv.setMouseCallback(name, self.on_mouse, self)
         self.image = image
         self.draw_rectangle()
